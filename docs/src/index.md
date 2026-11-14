@@ -38,11 +38,13 @@ For more details see the project's README.
 ### 1) Density of States (DOS) — concise example
 
 ```julia
-using KPMru, LinearAlgebra, SparseArrays, Plots
+using KPMru: normalizeH, kpm_1d, dos, JacksonKernel
+using SparseArrays
+using Plots
 
 # small 1D tight-binding (periodic)
 function tb1dchain(N; t=1.0)
-  H = spzeros(N,N)
+  H = spzeros(ComplexF64, N, N)
   for i in 1:N-1
     H[i,i+1] = -t; H[i+1,i] = -t
   end
@@ -55,23 +57,32 @@ NC = 256
 NR = 4
 H = tb1dchain(N)
 # rescale H to (-1,1)
-a, Hn = KPMru.normalizeH(H)
-mu = KPMru.kpm_1d(Hn, NC, NR)
-E, rho = KPMru.dos(mu, a; kernel=KPMru.JacksonKernel, N_tilde=500)
+a, Hn = normalizeH(H)
+mu = kpm_1d(Hn, NC, NR)
+E, rho = dos(mu, a; kernel=JacksonKernel, N_tilde=500)
 
 plot(E, rho, xlabel="E", ylabel="DOS", legend=false)
 ```
 
-Reference (full example):
+#### Full example: comparison with the analytical DOS
+
+This example uses a periodic chain with hopping amplitude `t = 1`, `N = 10_000`
+sites, and `NR = 10` random vectors, matching the parameters in the paper's
+benchmark caption. Moments are calculated once at `NC = 1024` and reused for
+expansion orders 64 and 32. The analytical DOS is the infinite-chain result,
+`ρ(E) = 1 / (π * sqrt(4 - E^2))` for `|E| < 2` and zero outside the band.
+
+The following block is self-contained once the packages are installed:
 
 ```julia
-using KPMru
-using LinearAlgebra
+using KPMru: normalizeH, kpm_1d, dos, JacksonKernel
 using SparseArrays
+using Plots
+using LaTeXStrings
 
-# Simple dense 1D tight-binding Hamiltonian (periodic)
+# Sparse 1D tight-binding Hamiltonian (periodic)
 function tb1dchain(N::Integer; t::Real=1.0)
-    H = zeros(Float64, N, N)
+    H = spzeros(ComplexF64, N, N)
     for i in 1:(N-1)
         H[i, i+1] = -t
         H[i+1, i] = -t
@@ -82,23 +93,22 @@ function tb1dchain(N::Integer; t::Real=1.0)
 end
 
 # Parameters
-N = 1000               # system size
-NC = 1024               # Chebyshev order
-NR = 10               # number of random vectors for stochastic trace
+N = 10_000            # number of sites
+NC = 1024             # Chebyshev order
+NR = 10               # random vectors for stochastic trace
 nE = 1000             # output energy grid points
 
 H = tb1dchain(N)
-# Rescale H -> (-1, 1)
-#Hsparse = sparse(H.*(1+0*1im)) # make the Hamiltonian sparse under complex number
-b, H_norm = KPMru.normalizeH(H)
+# Rescale H -> (-1, 1); b maps energies back to physical units
+b, H_norm = normalizeH(H)
 
 # Compute Chebyshev moments (DOS)
-mu = KPMru.kpm_1d(H_norm, NC, NR)    # returns moments (array-like)
+mu = kpm_1d(H_norm, NC, NR)    # returns moments (array-like)
 
 # Reconstruct DOS on a grid and map energies back to physical scale
-E, rho1024 = KPMru.dos(mu, b;kernel = KPMru.JacksonKernel, N_tilde=nE)
-E, rho64 = KPMru.dos(mu[1:64], b;kernel = KPMru.JacksonKernel, N_tilde=nE)
-E, rho32 = KPMru.dos(mu[1:32], b;kernel = KPMru.JacksonKernel, N_tilde=nE)
+E, rho1024 = dos(mu, b;kernel = JacksonKernel, N_tilde=nE)
+E, rho64 = dos(mu[1:64], b;kernel = JacksonKernel, N_tilde=nE)
+E, rho32 = dos(mu[1:32], b;kernel = JacksonKernel, N_tilde=nE)
 
 # Analytical DOS 
 rho_exact = zeros(length(E))
@@ -108,7 +118,6 @@ rho_exact[mask] = 1.0 ./ (π * sqrt.(4 .- E[mask].^2))
 # plot the DOS
 plot(xlabel=L"E", ylabel="DOS"*L"\;\rho(E)",
         legend = :top, 
-        #xlim=[-0.1,0.8586],ylim=[-0.001,0.035],
         framestyle = :box,grid=false,
         xtickfontsize=12, ytickfontsize=12,
         xguidefontsize=12, yguidefontsize=12,
@@ -116,7 +125,18 @@ plot(xlabel=L"E", ylabel="DOS"*L"\;\rho(E)",
         )
 plot!(E, [rho1024 rho64 rho32], lw=[4 3 2],label=[L"N_C=1024" L"N_C=64" L"N_C=32"])
 plot!(E, rho_exact, c=:black, ls=:dash, label=L"\mathrm{Analytic}")
+savefig("dos_convergence.png")
 ```
+
+The figure below is the DOS benchmark figure from the paper. Individual runs
+of the example can differ slightly because the trace is estimated using random
+vectors. Finite system size, the truncated expansion, and stochastic trace error
+account for differences from the analytical curve.
+
+![DOS benchmark for a periodic 1D tight-binding chain: KPM at expansion orders 32, 64, and 1024 compared with the analytical DOS.](assets/dos_benchmark.png)
+
+*Paper benchmark: `N = 10_000`, `NR = 10`, and `NC = 32, 64, 1024`.*
+[Download the original figure (PDF)](assets/dos_benchmark.pdf).
 
 ### 2) Optical conductivity (graphene) — concise example
 

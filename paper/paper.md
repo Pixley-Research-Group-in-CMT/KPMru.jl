@@ -76,57 +76,19 @@ The Kernel Polynomial Method is well established for computing spectral and resp
 
 The software automatically detects available hardware and offloads matrix-vector multiplications to a GPU if a compatible CUDA device is present (`KPMru.whichcore()`), ensuring efficient performance on modern clusters. Further memory can be saved by computing the matrix elements of $H$ and $\mathbf{J}$ on the fly, which is not implemented here.
 
-# Example Usage
+# Basic numerical benchmark
 
-The following minimal example computes the DOS of a 1‑D tight‑binding chain using `KPMru.jl`.
+The DOS of a periodic 1-D tight-binding chain provides a basic numerical benchmark against the analytical result. Given the sparse chain Hamiltonian `H`, the Chebyshev expansion order `NC`, the number of random vectors `NR`, and the number of output energy points `nE`, the calculation uses:
 
 ```julia
-using KPMru
-using LinearAlgebra
-using SparseArrays
-using Plots
+using KPMru: normalizeH, kpm_1d, dos, JacksonKernel
 
-# Simple dense 1D tight-binding Hamiltonian (periodic)
-function tb1dchain(N::Integer; t::Real=1.0)
-    H = zeros(Float64, N, N)
-    for i in 1:(N-1)
-        H[i, i+1] = -t
-        H[i+1, i] = -t
-    end
-    H[1, N] = -t
-    H[N, 1] = -t
-    return H
-end
-
-# Parameters
-N = 500               # system size
-NC = 256               # Chebyshev order
-NR = 32               # number of random vectors for stochastic trace
-nE = 1000             # output energy grid points
-
-H = tb1dchain(N)
-# Rescale H -> (-1, 1)
-# make the Hamiltonian sparse under complex number
-Hsparse = sparse(H.*(1+0*1im))
-b, H_norm = KPMru.normalizeH(Hsparse)
-
-# Compute Chebyshev moments (DOS)
-mu = KPMru.kpm_1d(H_norm, NC, NR)    # returns moments (array-like)
-
-# Reconstruct DOS on a grid and map energies back to physical scale
-E, rho = KPMru.dos(mu, b;kernel = KPMru.JacksonKernel, N_tilde=nE)
-
-# Analytical DOS 
-rho_exact = zeros(length(E))
-mask = abs.(E) .< 2
-rho_exact[mask] = 1.0 ./ (π * sqrt.(4 .- E[mask].^2))
-
-# plot the DOS
-plot(E, rho, xlabel="E", ylabel="DOS", label="KPM")
-plot!(E, rho_exact, lw=1, ls=:dash, label="Analytic")
+b, H_norm = normalizeH(H)
+mu = kpm_1d(H_norm, NC, NR)
+E, rho = dos(mu, b; kernel=JacksonKernel, N_tilde=nE)
 ```
 
-Figure \ref{fig:example} shows the DOS from the same workflow for a larger chain and several expansion orders. Discrepancies between the KPM and analytic results arise from the finite system size, the truncated KPM expansion order, and stochastic trace estimation error.
+The full example, including Hamiltonian construction and plotting, is available in the [documentation](https://pixley-research-group-in-cmt.github.io/KPMru.jl/). Figure \ref{fig:example} compares the KPM and analytical DOS for several expansion orders. Discrepancies arise from the finite system size, the truncated KPM expansion order, and stochastic trace estimation error.
 
 ![Density of states for a simple 1D tight-binding chain $L=10^4$: KPM (solid) with various expansion orders $N_C=32,64,1024$ vs. analytic (dashed). The number of random vectors for the stochastic trace is $N_R=10$. \label{fig:example}](dosplot.pdf){width=80%}
 
@@ -140,7 +102,7 @@ Figure \ref{fig:example} shows the DOS from the same workflow for a larger chain
 
 3.  **Effects of Quasiperiodic potentials:** Used to compute conductivity and disorder-averaged spectral properties and Green's function in disordered materials [@Yi2022; @fu2021flat].
 
-4.  **Nonlinear optical responses and disordered topological material:** Employed to calculate nonlinear responses such as the CPGE in disordered topological semimetals and to identify spectral signatures of surface and bulk phase transitions in disordered axion insulators [@Wu2024; @Grindall2025].
+4.  **Nonlinear optical responses and disordered topological material:** Employed to calculate nonlinear responses such as the CPGE in disordered topological semimetals and to identify spectral signatures of surface and bulk phase transitions in disordered axion insulators [@Wu2024; @Grindall2025]. A concrete example is the CPGE study [@Wu2024], whose public [research repository](https://github.com/Pixley-Research-Group-in-CMT/KPM-NonLinResp-CPGE) explicitly credits `KPM.jl`, the previous name of `KPMru.jl`, for its KPM functionality. The repository documents the workflow from disordered Hamiltonians and current operators through Chebyshev-moment calculations to the nonlinear optical response.
 
 5.  **Method benchmarking and numerical validation:** Served as a reference implementation for comparing and validating new Chebyshev-regularization and spectral-density algorithms [@Yi2025].
 

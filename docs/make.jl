@@ -1,5 +1,6 @@
 # Docs build script for Documenter.jl
-push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
+# Render plots without opening GUI windows on CI or local docs builds.
+ENV["GKSwstype"] = get(ENV, "GKSwstype", "100")
 using KPMru
 using Documenter
 

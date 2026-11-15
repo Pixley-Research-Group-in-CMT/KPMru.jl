@@ -7,9 +7,9 @@
 *.info
 lcov.info
 
-# Package-level Manifest is usually not committed for libraries
-# /Manifest.toml
-#If this repo is an application or you need exact, reproducible environments for collaborators/CI/examples — commit the Manifest.toml.
+# Resolve package and documentation dependencies from Project.toml
+/Manifest.toml
+/docs/Manifest.toml
 
 # Build/deps artifacts (common in packages that use BinaryBuilder/Artifacts)
 /deps/deps.jl

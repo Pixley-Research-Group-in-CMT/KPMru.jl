@@ -25,7 +25,8 @@ function chebyshevT_xn(x_grid::Array{T, 1} where {T <: dt_num}, n_grid::Array{In
     return chebyshevT.(transpose(n_grid), x_grid)
 end
 
-function chebyshevT_xn(x::dt_num, n_grid::Array{Int64, 1})
+# DOS energy derivatives pass automatic-differentiation dual numbers here.
+function chebyshevT_xn(x::Number, n_grid::Array{Int64, 1})
     return chebyshevT.(transpose(n_grid), x)
 end
 

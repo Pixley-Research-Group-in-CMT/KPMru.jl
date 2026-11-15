@@ -1,132 +1,148 @@
 # KPMru
 
-Previously named `KPM`, this package now loads with `using KPMru`.
-Update qualified calls from `KPM.function_name(...)` to `KPMru.function_name(...)`;
-the function names and arguments are unchanged.
+Kernel Polynomial Method (KPM) calculations for tight-binding Hamiltonians: density
+of states, DC conductivity, and linear and nonlinear optical response, with
+optional CUDA acceleration.
 
 [![Build Status](https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/Pixley-Research-Group-in-CMT/KPMru.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/Pixley-Research-Group-in-CMT/KPMru.jl)
 [![Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://pixley-research-group-in-cmt.github.io/KPMru.jl/)
-[![Julia](https://img.shields.io/badge/julia-1.12-blue.svg)](https://julialang.org)
+[![Julia](https://img.shields.io/badge/julia-1.10%2B-blue.svg)](https://julialang.org)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22773562.svg)](https://doi.org/10.5281/zenodo.22773562)
 
-
-## Capability
-
-Kernel Polynomial Method (KPM) for various quantities:
-
-KPM for density of states (DOS) (RevModPhys.78.275):
-```
-mu = KPMru.kpm_1d(H_norm, NC, NR)
-E, rho = KPMru.dos(mu, D)
-```
-where `H_norm` is the scaled Hamiltonian with original half bandwidth `D`, `NC` is the expansion order and `NR` is the number of random vectors for stochastic estimation of trace in KPM. The function `KPMru.dos` evaluate the DOS `rho` with energy points `E`.
-
-KPM for DC conductivity (linear response)  (RevModPhys.78.275):
-```
-μ2Dxy = KPMru.kpm_2d(H_norm, Jx, Jy, NC, NR, NH)
-dσxyE = KPMru.d_dc_cond(μ2Dxy, D, Evals)
-```
-where  `Jx, Jy` are current operators and `NH` is the dimensionality of the Hamiltonian `H_norm`. The function `KPMru.d_dc_cond` evaluate the differential first-order conductivity `dσxyE` with given energy points `Evals`, integration of which (with Fermi distribution) gives DC conductivity at certain temperature.
-
-KPM for frequency-dependent nonlinear response (arXiv:1810.03732):
-```
-mu_3d_xyz = KPMru.kpm_3d(H_norm, Jx, Jy, Jz, NC, NR, NH)
-dchi_xyz = KPMru.d_cpge(mu_3d_xyz, NC, w1, w2, E)
-```
-where `dchi_xyz` is the differential second-order conductivity (arXiv:2312.14244), `w1, w2` are two frequencies and `E` is the energy to evaluate, integration of which (with Fermi distribution) gives non at certain temperature.
-
-
 ## Installation
-<!--  First, install the old version of CUDA with
-  ```
-  ] add CUDA@3.12.0
-  ```
-  Then, add the KPMru package
-  ```
-  ] add https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl
-  ```
-  If the code automatically upgrade CUDA, go to `~/.julia/packages/CUDA/` (or where you put your package) and delete the higher version of CUDA. Then, `] rm CUDA` to uninstall CUDA from registries and `] add CUDA@3.12.0`, which will also precompile KPMru. Also recent Julia updates change GPUcompiler, which also affect the old version CUDA. To downgrade Julia, we recommend users to install `juliaup` (https://github.com/JuliaLang/juliaup), i.e.,
-  ```
-  brew install juliaup
-  ```
-Then, to add old julia to your system
-```
-juliaup add 1.9.1
-```
-You can start the specific version by
-```
-julia +1.9.1
-```
-We also recommend to create a separate directory for KPM related projects say `KPMenv` and start julia with the separate environment
-```
-julia +1.9.1 --project=./KPMenv
-```
--->
 
-This is an [unregistered package](https://docs.julialang.org/en/v1.0/stdlib/Pkg/#Adding-unregistered-packages-1), so use the GitHub URL to add it. We recently updated CUDA compatibility and there is no need to constrain to legacy CUDA versions.
+KPMru supports Julia 1.10 and later. In the Julia REPL, press `]` to enter package
+mode, then choose one of these installation options:
 
-Install the package with the latest CUDA.jl:
-  ```
-  ] add https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl
-  ```
-  The package now supports CUDA.jl versions 4 and 5, making it compatible with modern Julia packages.
+**From GitHub (available now):**
 
-  After installation, you should be able to import the package by
-  ```
-      julia> using KPMru
-  ```
-  without further action with github. To update, use
-  ```
-  ] update KPMru
-  ```
-  and authenticate with GitHub only if prompted by your local setup. 
-  
+```text
+pkg> add https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl
+```
+
+**From the General registry (registration pending):**
+
+[Registration in General](https://github.com/JuliaRegistries/General/pull/175996)
+is pending. Once it is merged and your local registry is updated, install by name:
+
+```text
+pkg> add KPMru
+```
+
+To update an existing installation, use `pkg> update KPMru`. Press Backspace at an
+empty package prompt to return to Julia mode. CPU usage does not require CUDA.jl.
 
 ## Getting started with DOS
 
-  You will need Hamiltonian (`H_orig`).  
+The Julia examples below run in order in the same session. They use small matrices
+and expansion orders for a quick demonstration; increase the system size, expansion
+order `NC`, and number of random vectors `NR` for converged calculations.
+KPMru does not export its functions, so calls below use the `KPMru.` prefix.
 
-  The most simple way to calculate DOS is
-  ```
-  julia> E, rhoE = KPMru.dos(H_orig)
-  ```
+Build a periodic nearest-neighbor chain with hopping amplitude one. The simplest
+DOS interface accepts the original Hamiltonian and rescales it internally:
 
-  For many situation, you may need more control over the calculation. In such case, you may calculate moment first and then convert to DOS. 
-When calculating density of state, left and right input vectors for KPM need to be random and identical when both written as a ket. This is
-done by default in `kpm_1d`, or you may supply your own input vectors.
+```julia
+using KPMru
+using SparseArrays
+using Random
 
-  When using `kpm_1d` (and `kpm_1d!`, the in place version), Hamiltonian must be normalized. `H_norm` is the Hamiltonian normalized by `a` such that `H_orig * a == H_norm`, and `H_norm` has all eigenvalues in (-1, 1). Calculating `mu` and then DOS allows calculating DOS and its derivative at zero energy simpler.
-
-  ```
-  julia> NC = 1024; NR = 13;
-  julia> mu = KPMru.KPM_1d(H_norm, NC, NR)
-  julia> rho_0 = KPMru.dos0(mu, a)
-  julia> d2rho_0 = KPMru.dos0(mu, a; dE_order=2)
-  julia> E_grid, rho_E = dos(mu, a, 50; E_range=[-1.5, 1.5])
-  ```
-
-  [DC conductivity](https://arxiv.org/abs/1410.8140) **WIP**:
-
-## Some practical tips:
-  * Store your github credentials (for convenience). See [this](https://docs.github.com/en/free-pro-team@latest/github/using-git/caching-your-github-credentials-in-git) instruction.
-  * When using Amarel, the interactive computing nodes do not have git available. Add/update package on login node. 
-  * When using RUPC, ssh to one of n34, n35, n40. Add package there. Load it once to compile. 
-  * If there is any permission issue when running, add permission: `chmod -r +x ~/.julia/`. For permission error when building, simply ignore.
-
-
-## Notes about GPU:
-
-<!-- This package uses GPU *automatically* when GPU is available. No action needed. To check whether GPU is enabled, run -->
-CUDA support is now an optional package extension. CPU usage works without installing CUDA.jl. If CUDA.jl is present, KPMru loads CUDA-specialized methods automatically.
-
-To check whether GPU is enabled, run
+Random.seed!(1234)
+NH = 16
+H_orig = spdiagm(-1 => fill(-1.0, NH - 1), 1 => fill(-1.0, NH - 1))
+H_orig[1, NH] = H_orig[NH, 1] = -1.0
+NC = 32
+NR = 4
+E, rho = KPMru.dos(H_orig; NC=NC, NR=NR, N_tilde=50,
+                  E_range=[-1.5, 1.5])
 ```
-  KPMru.whichcore()
+
+For more control, compute moments first and reuse them. `normalizeH` returns the
+energy scale `a` and `H_norm = H_orig / a`, whose eigenvalues lie inside `(-1, 1)`.
+The default `kpm_1d` call generates matching left and right random input vectors
+for the stochastic trace estimate. Functions ending in `!` are in-place variants.
+
+```julia
+a, H_norm = KPMru.normalizeH(H_orig)
+mu = KPMru.kpm_1d(H_norm, NC, NR)
+rho_0 = KPMru.dos0(mu, a)
+d2rho_0 = KPMru.dos0(mu, a; dE_order=2)
+E_grid, rho_E = KPMru.dos(mu, a; N_tilde=50, E_range=[-1.5, 1.5])
 ```
-<!-- It is also recommended to add this line right after importing `KPMru` in julia code to guarantee using GPU correctly. -->
-To use CUDA GPU, you need to load CUDA first, then load KPMru
+
+`rho_0` and `d2rho_0` are the DOS and its second energy derivative at zero energy.
+`N_tilde=50` divides the requested interval into 50 steps, returning 51 points
+including both endpoints. `E_grid` is in the original Hamiltonian's energy units.
+See [the KPM review](https://doi.org/10.1103/RevModPhys.78.275) for background.
+
+## Response calculations
+
+The following examples reuse the chain and parameters above. They demonstrate the
+API; a small one-dimensional chain is not a model for a general response tensor.
+Current operators and physical prefactors must match the model and units in an
+actual calculation.
+
+For longitudinal DC response, construct the chain current operator (in units where
+the charge, lattice spacing, and reduced Planck constant are one), calculate 2D
+moments, and evaluate the differential conductivity at the specified energies:
+
+```julia
+Jx = spdiagm(-1 => fill(-1.0im, NH - 1), 1 => fill(1.0im, NH - 1))
+Jx[NH, 1] = 1.0im
+Jx[1, NH] = -1.0im
+mu_2d_xx = KPMru.kpm_2d(H_norm, Jx, Jx, NC, NR, NH)
+Evals = [-0.5, 0.0, 0.5]
+dsigma_xx = KPMru.d_dc_cond(mu_2d_xx, a, Evals)
 ```
-  using CUDA
-  using KPMru
+
+For nonlinear response, use a smaller expansion order because the moment tensor
+requires cubic storage. Frequencies and the evaluation energy passed to `d_cpge`
+are in units of the rescaled Hamiltonian:
+
+```julia
+NC3 = 8
+mu_3d_xxx = KPMru.kpm_3d(H_norm, Jx, Jx, Jx, NC3, NR, NH)
+w1, w2, energy = 0.2, -0.15, 0.1
+dchi_xxx = KPMru.d_cpge(mu_3d_xxx, NC3, w1, w2, energy)
 ```
-Then the module will load extension code.
+
+These functions return differential response kernels. Obtaining a physical
+conductivity requires the appropriate energy integration, occupation factors,
+rescaling, and physical prefactors. See the
+[documentation](https://pixley-research-group-in-cmt.github.io/KPMru.jl/),
+[DC response reference](https://arxiv.org/abs/1410.8140), and
+[nonlinear response references](https://arxiv.org/abs/1810.03732)
+and [arXiv:2312.14244](https://arxiv.org/abs/2312.14244).
+
+## Optional GPU support
+
+CUDA.jl 5 is an optional dependency. GPU support is experimental and requires a
+compatible NVIDIA GPU. Install CUDA separately in package mode:
+
+```text
+pkg> add CUDA@5
+```
+
+In a GPU session, load CUDA and KPMru (the following optional example is separate
+from the CPU examples above):
+
+```text
+julia> using CUDA
+julia> using KPMru
+julia> KPMru.whichcore()
+```
+
+To query whether GPU support is active in the current session:
+
+```julia
+KPMru.whichcore()
+```
+
+Without CUDA loaded, this returns `false` and calculations run on the CPU.
+
+## Previous package name
+
+Earlier unregistered versions used the name `KPM`. Load this package with
+`using KPMru` and update qualified calls from `KPM.function_name(...)` to
+`KPMru.function_name(...)`. The moment function is named `kpm_1d` (lowercase).

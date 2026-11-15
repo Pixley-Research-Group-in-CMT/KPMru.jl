@@ -1,0 +1,20 @@
+name: TagBot
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+# Use repository-default token permissions, as recommended by TagBot setup.
+# Upstream Actions settings must allow write access for tags and releases.
+
+jobs:
+  TagBot:
+    if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: JuliaRegistries/TagBot@87cc4cc2b4639f6c743f5772f376a32914060732 # v1.25.15
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Optional deploy key, e.g. when tags should trigger other workflows.
+          # ssh: ${{ secrets.DOCUMENTER_KEY }}

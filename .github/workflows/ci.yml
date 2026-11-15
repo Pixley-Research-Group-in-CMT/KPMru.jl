@@ -7,48 +7,103 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.10', '1']
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v3
         with:
-          version: '1.10'
+          version: ${{ matrix.julia-version }}
 
-      - name: Install dependencies and run tests
-        run: |
-          JULIA_PKG_SERVER= julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
+      - uses: julia-actions/cache@v3
+
+      - uses: julia-actions/julia-buildpkg@v1
+
+      - name: Run tests with coverage
+        uses: julia-actions/julia-runtest@v1
+        with:
+          coverage: 'true'
+
+      - name: Generate LCOV report
+        if: matrix.julia-version == '1'
+        uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src,ext
+
+      - name: Preserve coverage report
+        if: matrix.julia-version == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: lcov.info
+          if-no-files-found: error
+
+      - name: Upload coverage to Codecov
+        if: matrix.julia-version == '1'
+        uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   docs:
+    permissions:
+      contents: read
     needs: test
     runs-on: ubuntu-latest
 
-    # Only deploy documentation after a push to main.
-    # Pull requests should run tests, but should not deploy the website.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+    # Build executable documentation examples on pushes and pull requests.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v3
         with:
           version: '1.10'
 
-      - name: Build documentation
+      - uses: julia-actions/cache@v3
+
+      - name: Build documentation and execute examples
         run: |
-          julia --project=docs -e 'using Pkg; Pkg.instantiate(); include("docs/make.jl")'
+          julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); include("docs/make.jl")'
+
+      - name: Preserve built documentation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-site
+          path: docs/build/dev
+          include-hidden-files: true
+          if-no-files-found: error
+
+  deploy-docs:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: documentation-site
+          path: docs-site
 
       - name: Deploy documentation to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/build/dev
+          publish_dir: ./docs-site

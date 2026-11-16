@@ -8,26 +8,22 @@ optional CUDA acceleration.
 [![Coverage](https://codecov.io/gh/Pixley-Research-Group-in-CMT/KPMru.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/Pixley-Research-Group-in-CMT/KPMru.jl)
 [![Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://pixley-research-group-in-cmt.github.io/KPMru.jl/)
 [![Julia](https://img.shields.io/badge/julia-1.10%2B-blue.svg)](https://julialang.org)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22773562.svg)](https://doi.org/10.5281/zenodo.22773562)
+[![DOI](https://zenodo.org/badge/314674868.svg)](https://doi.org/10.5281/zenodo.24270742)
 
 ## Installation
 
-KPMru supports Julia 1.10 and later. In the Julia REPL, press `]` to enter package
-mode, then choose one of these installation options:
-
-**From GitHub (available now):**
-
-```text
-pkg> add https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl
-```
-
-**From the General registry (registration pending):**
-
-[Registration in General](https://github.com/JuliaRegistries/General/pull/175996)
-is pending. Once it is merged and your local registry is updated, install by name:
+KPMru supports Julia 1.10 and later. Install the registered release from
+[General](https://github.com/JuliaRegistries/General/tree/master/K/KPMru).
+In the Julia REPL, press `]` to enter package mode:
 
 ```text
 pkg> add KPMru
+```
+
+Alternatively, install the development version directly from GitHub:
+
+```text
+pkg> add https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl
 ```
 
 To update an existing installation, use `pkg> update KPMru`. Press Backspace at an
@@ -117,21 +113,37 @@ and [arXiv:2312.14244](https://arxiv.org/abs/2312.14244).
 
 ## Optional GPU support
 
-CUDA.jl 5 is an optional dependency. GPU support is experimental and requires a
-compatible NVIDIA GPU. Install CUDA separately in package mode:
+CUDA is an optional dependency: CPU usage requires no extra installation.
+The package currently declares compatibility with **CUDA.jl 5.x**. In the same
+Julia environment where KPMru is installed, add it in package mode:
 
 ```text
 pkg> add CUDA@5
 ```
 
-In a GPU session, load CUDA and KPMru (the following optional example is separate
-from the CPU examples above):
+Here `5` is the version of the Julia package CUDA.jl, not the NVIDIA CUDA toolkit.
+You need a supported NVIDIA GPU and a working NVIDIA driver. CUDA.jl normally
+downloads the appropriate toolkit itself, so a separate toolkit installation is
+not required. See the [CUDA.jl installation guide](https://cuda.juliagpu.org/stable/installation/overview/)
+for platform and driver requirements.
+
+Start a fresh Julia session in that environment, check CUDA, then load KPMru:
 
 ```text
 julia> using CUDA
+julia> CUDA.versioninfo()
+julia> @assert CUDA.functional(true) "CUDA is not functional on this machine"
 julia> using KPMru
 julia> KPMru.whichcore()
 ```
+
+`CUDA.functional(true)` checks CUDA availability and prints diagnostics on failure.
+Loading CUDA and KPMru enables the optional extension; `KPMru.whichcore()` should
+report `true` when the extension is active and CUDA is functional. This diagnostic
+is separate from the CPU examples above.
+
+GPU support is experimental. The current test suite and CI validate CPU behavior;
+GPU numerical execution has not yet been validated by a dedicated GPU test suite.
 
 To query whether GPU support is active in the current session:
 

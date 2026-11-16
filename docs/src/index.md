@@ -9,22 +9,18 @@ CurrentModule = KPMru
 
 ## Installation
 
-KPMru supports Julia 1.10 and later. Press `]` in the Julia REPL to enter
-package mode and choose an installation option.
-
-**From GitHub (available now):**
-
-```text
-pkg> add https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl
-```
-
-**From the General registry (registration pending):**
-
-[Registration in General](https://github.com/JuliaRegistries/General/pull/175996)
-is pending. Once it is merged and your local registry is updated:
+KPMru supports Julia 1.10 and later. Install the registered release from
+[General](https://github.com/JuliaRegistries/General/tree/master/K/KPMru).
+Press `]` in the Julia REPL to enter package mode:
 
 ```text
 pkg> add KPMru
+```
+
+Alternatively, install the development version directly from GitHub:
+
+```text
+pkg> add https://github.com/Pixley-Research-Group-in-CMT/KPMru.jl
 ```
 
 Return to Julia mode with Backspace at an empty package prompt, then import:
